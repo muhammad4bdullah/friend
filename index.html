@@ -1,1 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Friendship Request 💖</title>
 
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial;
+}
+
+body{
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+background:linear-gradient(135deg,#ffd6e7,#dff8ff);
+overflow:hidden;
+}
+
+.card{
+width:min(92%,520px);
+background:white;
+padding:28px;
+border-radius:25px;
+box-shadow:0 15px 40px rgba(0,0,0,.15);
+text-align:center;
+}
+
+h1{
+color:#ff5f95;
+margin-bottom:15px;
+}
+
+#question{
+min-height:70px;
+font-size:1.15rem;
+margin-bottom:25px;
+}
+
+.buttons{
+position:relative;
+height:90px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:0 30px;
+}
+
+button{
+padding:12px 24px;
+border:none;
+border-radius:999px;
+font-size:16px;
+cursor:pointer;
+}
+
+#yes{
+background:#ff6fa5;
+color:white;
+}
+
+#no{
+background:#ddd;
+position:absolute;
+left:70%;
+top:25px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card" id="app">
+<h1>🌸 Loading...</h1>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+/* 🔥 YOUR CONFIG (NOW ACTUALLY USED) */
+const firebaseConfig = {
+  apiKey: "AIzaSyAGg5ZHQHcTLfggRwlRr98TwqCDelpYHjs",
+  authDomain: "fryends-777.firebaseapp.com",
+  databaseURL: "https://fryends-777-default-rtdb.firebaseio.com",
+  projectId: "fryends-777",
+  storageBucket: "fryends-777.firebasestorage.app",
+  messagingSenderId: "196473923423",
+  appId: "1:196473923423:web:30c4102ee221f6a07078ea",
+  measurementId: "G-BCYQJSEBHW"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+/* save */
+function save(name, id){
+  set(ref(db, "friends/" + id), {
+    name,
+    time: Date.now()
+  });
+}
+
+/* device lock */
+let deviceId = localStorage.getItem("device_id");
+if(!deviceId){
+  deviceId = crypto.randomUUID();
+  localStorage.setItem("device_id", deviceId);
+}
+
+let username = localStorage.getItem("friend_name");
+
+const questions=[
+"Hi 🥹 can I ask something?",
+"Do we vibe together?",
+"Would you tolerate my jokes 😭",
+"Can we be meme partners?",
+"Can we annoy each other daily?",
+"Do you trust me a little?",
+"Final question...",
+"Will you be my friend? 💖"
+];
+
+let i = 0;
+
+/* START */
+if(username){
+startGame(username);
+}else{
+showName();
+}
+
+/* NAME SCREEN */
+function showName(){
+document.getElementById("app").innerHTML = `
+<h2>👤 Enter your name</h2>
+<input id="name" placeholder="your name..." 
+style="padding:12px;width:80%;border-radius:10px;border:1px solid #ccc;">
+<br><br>
+<button id="startBtn"
+style="padding:10px 20px;border:none;border-radius:999px;background:#ff6fa5;color:white;">
+Start 💖
+</button>
+`;
+
+document.getElementById("startBtn").onclick = () => {
+const name = document.getElementById("name").value;
+if(!name) return;
+
+localStorage.setItem("friend_name", name);
+save(name, deviceId);
+
+startGame(name);
+};
+}
+
+/* GAME */
+function startGame(name){
+document.getElementById("app").innerHTML = `
+<h1>🌸 Friendship Journey 🌸</h1>
+<div id="question">${questions[0]}</div>
+
+<div class="buttons">
+<button id="yes">Yes 💖</button>
+<button id="no">No 🙄</button>
+</div>
+`;
+
+const q = document.getElementById("question");
+const yes = document.getElementById("yes");
+const no = document.getElementById("no");
+
+yes.onclick = () => {
+i++;
+if(i < questions.length){
+q.textContent = questions[i];
+}else{
+showCert(name);
+}
+};
+
+no.addEventListener("mouseenter", moveNo);
+no.addEventListener("click", moveNo);
+no.addEventListener("touchstart", moveNo);
+
+function moveNo(){
+const box = no.parentElement.getBoundingClientRect();
+
+no.style.left = Math.random() * (box.width - 80) + "px";
+no.style.top = Math.random() * (box.height - 40) + "px";
+}
+}
+
+/* CERT */
+function showCert(name){
+document.getElementById("app").innerHTML = `
+<h1>🎉 YAYYY</h1>
+
+<div style="
+border:3px dashed #ff5f95;
+padding:20px;
+border-radius:15px;
+background:#fff0f5;
+">
+<h3>📜 Friendship Certificate</h3>
+<p>This certifies</p>
+<h1>${name}</h1>
+<p>is officially my friend 💖</p>
+</div>
+`;
+}
+
+</script>
+
+</body>
+</html>
