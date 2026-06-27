@@ -166,14 +166,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// Check for 24-hour expiration right away when the page loads
+// SCENARIO A: Wipes old test devices instantly AND checks for the 24-hour expiration
 const setupTime = localStorage.getItem("setup_time");
-if (setupTime) {
-    const hoursPassed = (Date.now() - parseInt(setupTime)) / (1000 * 60 * 60);
-    if (hoursPassed >= 24) {
-        // 24 hours have passed! Clear local storage completely to reset the app
-        localStorage.clear();
-    }
+const hasName = localStorage.getItem("friend_name");
+
+if ((setupTime && (Date.now() - parseInt(setupTime)) / (1000 * 60 * 60) >= 24) || (hasName && !setupTime)) {
+    localStorage.clear();
 }
 
 function save(name,id){
@@ -183,6 +181,7 @@ time: Date.now()
 });
 }
 
+// Fixed to attach under the exact same user object node seamlessly 
 function saveMessage(id, message){
 update(ref(db, "friends/" + id), {
 message: message
@@ -243,7 +242,7 @@ document.getElementById("startBtn").onclick=()=>{
 const name=document.getElementById("name").value.trim();
 if(!name)return;
 
-// Save the current timestamp when they submit their name to start the 24-hour clock
+// Record the starting timestamp for their 24hr cycle
 localStorage.setItem("setup_time", Date.now().toString());
 localStorage.setItem("friend_name",name);
 save(name,deviceId);
@@ -271,7 +270,7 @@ const warning=document.getElementById("no-warning");
 
 yes.onclick=()=>{
 i++;
-warning.textContent = ""; 
+warning.textContent = ""; // Clear warning string when "Yes" is clicked
 
 if(i<questions.length){
 q.classList.remove("fade");
@@ -297,7 +296,7 @@ setTimeout(()=>showCert(name),600);
 no.addEventListener("mouseenter", moveNo);
 no.addEventListener("click", moveNo);
 no.addEventListener("touchstart", (e) => {
-    e.preventDefault(); 
+    e.preventDefault(); // Glitch-free touch handling for mobile
     moveNo();
 });
 
