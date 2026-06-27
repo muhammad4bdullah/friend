@@ -10,7 +10,7 @@
 margin:0;
 padding:0;
 box-sizing:border-box;
-font-family:Arial;
+font-family:Arial,sans-serif;
 }
 
 body{
@@ -20,6 +20,7 @@ justify-content:center;
 align-items:center;
 background:linear-gradient(135deg,#ffd6e7,#dff8ff);
 overflow:hidden;
+position:relative;
 }
 
 .card{
@@ -29,6 +30,7 @@ padding:28px;
 border-radius:25px;
 box-shadow:0 15px 40px rgba(0,0,0,.15);
 text-align:center;
+z-index:10;
 }
 
 h1{
@@ -36,10 +38,39 @@ color:#ff5f95;
 margin-bottom:15px;
 }
 
+#progress{
+font-size:.9rem;
+color:#888;
+margin-bottom:10px;
+}
+
 #question{
 min-height:70px;
 font-size:1.15rem;
 margin-bottom:25px;
+}
+
+#no-warning{
+font-size: 0.85rem;
+color: #ff5f95;
+min-height: 18px;
+margin-bottom: 5px;
+font-weight: bold;
+}
+
+.fade{
+animation:fade .35s ease;
+}
+
+@keyframes fade{
+from{
+opacity:0;
+transform:translateY(12px);
+}
+to{
+opacity:1;
+transform:translateY(0);
+}
 }
 
 .buttons{
@@ -57,6 +88,11 @@ border:none;
 border-radius:999px;
 font-size:16px;
 cursor:pointer;
+transition:.25s;
+}
+
+button:hover{
+transform:scale(1.05);
 }
 
 #yes{
@@ -69,6 +105,38 @@ background:#ddd;
 position:absolute;
 left:70%;
 top:25px;
+transition: left 0.15s ease, top 0.15s ease, transform 0.25s;
+}
+
+.heart{
+position:fixed;
+bottom:-50px;
+pointer-events:none;
+animation:floatSway linear forwards;
+z-index:1;
+}
+
+@keyframes floatSway {
+0% {
+transform: translateY(0) translateX(0) rotate(0deg);
+opacity: 0;
+}
+15% {
+opacity: 0.7;
+}
+30% {
+transform: translateY(-30vh) translateX(15px) rotate(45deg);
+}
+60% {
+transform: translateY(-60vh) translateX(-15px) rotate(135deg);
+}
+80% {
+opacity: 0.7;
+}
+100% {
+transform: translateY(-115vh) translateX(10px) rotate(220deg);
+opacity: 0;
+}
 }
 </style>
 </head>
@@ -80,10 +148,10 @@ top:25px;
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
-/* 🔥 YOUR CONFIG (NOW ACTUALLY USED) */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getDatabase, ref, set, update } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyAGg5ZHQHcTLfggRwlRr98TwqCDelpYHjs",
   authDomain: "fryends-777.firebaseapp.com",
@@ -98,22 +166,37 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* save */
-function save(name, id){
-  set(ref(db, "friends/" + id), {
-    name,
-    time: Date.now()
-  });
+// Check for 24-hour expiration right away when the page loads
+const setupTime = localStorage.getItem("setup_time");
+if (setupTime) {
+    const hoursPassed = (Date.now() - parseInt(setupTime)) / (1000 * 60 * 60);
+    if (hoursPassed >= 24) {
+        // 24 hours have passed! Clear local storage completely to reset the app
+        localStorage.clear();
+    }
 }
 
-/* device lock */
-let deviceId = localStorage.getItem("device_id");
+function save(name,id){
+set(ref(db,"friends/"+id),{
+name: name,
+time: Date.now()
+});
+}
+
+function saveMessage(id, message){
+update(ref(db, "friends/" + id), {
+message: message
+});
+}
+
+let deviceId=localStorage.getItem("device_id");
+
 if(!deviceId){
-  deviceId = crypto.randomUUID();
-  localStorage.setItem("device_id", deviceId);
+deviceId=crypto.randomUUID();
+localStorage.setItem("device_id",deviceId);
 }
 
-let username = localStorage.getItem("friend_name");
+let username=localStorage.getItem("friend_name");
 
 const questions=[
 "Hi 🥹 can I ask something?",
@@ -126,93 +209,146 @@ const questions=[
 "Will you be my friend? 💖"
 ];
 
-let i = 0;
+let i=0;
+let noCount = 0;
 
-/* START */
+/* Floating Hearts Generator */
+setInterval(()=>{
+const h=document.createElement("div");
+h.className="heart";
+h.textContent=["💖","💕","💗","✨"][Math.floor(Math.random()*4)];
+h.style.left=Math.random()*100+"vw";
+h.style.animationDuration=(6+Math.random()*4)+"s";
+h.style.fontSize=(16+Math.random()*14)+"px";
+document.body.appendChild(h);
+setTimeout(()=>h.remove(),10000);
+},600);
+
 if(username){
 startGame(username);
 }else{
 showName();
 }
 
-/* NAME SCREEN */
 function showName(){
-document.getElementById("app").innerHTML = `
+
+document.getElementById("app").innerHTML=`
 <h2>👤 Enter your name</h2>
-<input id="name" placeholder="your name..." 
-style="padding:12px;width:80%;border-radius:10px;border:1px solid #ccc;">
+<input id="name" placeholder="your name..." style="padding:12px; width:80%; border-radius:10px; border:1px solid #ccc; margin-top:15px;">
 <br><br>
-<button id="startBtn"
-style="padding:10px 20px;border:none;border-radius:999px;background:#ff6fa5;color:white;">
-Start 💖
-</button>
+<button id="startBtn" style="padding:10px 20px; border:none; border-radius:999px; background:#ff6fa5; color:white;">Start 💖</button>
 `;
 
-document.getElementById("startBtn").onclick = () => {
-const name = document.getElementById("name").value;
-if(!name) return;
+document.getElementById("startBtn").onclick=()=>{
+const name=document.getElementById("name").value.trim();
+if(!name)return;
 
-localStorage.setItem("friend_name", name);
-save(name, deviceId);
-
+// Save the current timestamp when they submit their name to start the 24-hour clock
+localStorage.setItem("setup_time", Date.now().toString());
+localStorage.setItem("friend_name",name);
+save(name,deviceId);
 startGame(name);
 };
 }
 
-/* GAME */
 function startGame(name){
-document.getElementById("app").innerHTML = `
-<h1>🌸 Friendship Journey 🌸</h1>
-<div id="question">${questions[0]}</div>
 
+document.getElementById("app").innerHTML=`
+<h1>🌸 Friendship Journey 🌸</h1>
+<div id="progress">Question 1 / ${questions.length}</div>
+<div id="no-warning"></div>
+<div id="question">${questions[0]}</div>
 <div class="buttons">
 <button id="yes">Yes 💖</button>
 <button id="no">No 🙄</button>
 </div>
 `;
 
-const q = document.getElementById("question");
-const yes = document.getElementById("yes");
-const no = document.getElementById("no");
+const q=document.getElementById("question");
+const yes=document.getElementById("yes");
+const no=document.getElementById("no");
+const warning=document.getElementById("no-warning");
 
-yes.onclick = () => {
+yes.onclick=()=>{
 i++;
-if(i < questions.length){
-q.textContent = questions[i];
+warning.textContent = ""; 
+
+if(i<questions.length){
+q.classList.remove("fade");
+void q.offsetWidth;
+q.classList.add("fade");
+q.textContent=questions[i];
+document.getElementById("progress").textContent=`Question ${i+1} / ${questions.length}`;
 }else{
-showCert(name);
+for(let j=0;j<20;j++){
+const e=document.createElement("div");
+e.className="heart";
+e.textContent="💖";
+e.style.left=(45+Math.random()*10)+"vw";
+e.style.animationDuration="2s";
+e.style.fontSize="28px";
+document.body.appendChild(e);
+setTimeout(()=>e.remove(),2000);
+}
+setTimeout(()=>showCert(name),600);
 }
 };
 
 no.addEventListener("mouseenter", moveNo);
 no.addEventListener("click", moveNo);
-no.addEventListener("touchstart", moveNo);
+no.addEventListener("touchstart", (e) => {
+    e.preventDefault(); 
+    moveNo();
+});
 
 function moveNo(){
-const box = no.parentElement.getBoundingClientRect();
+noCount++;
 
-no.style.left = Math.random() * (box.width - 80) + "px";
-no.style.top = Math.random() * (box.height - 40) + "px";
+if(noCount >= 5 && noCount < 8){
+    warning.textContent = "Wow, you're really trying hard to say no huh? 🥲";
+} else if (noCount >= 8) {
+    no.style.display = "none"; 
+    warning.textContent = "Resistance is futile. Say yes. 😂";
+    return;
+}
+
+const box=no.parentElement.getBoundingClientRect();
+no.style.left=Math.random()*(box.width-90)+"px";
+no.style.top=Math.random()*(box.height-40)+"px";
 }
 }
 
-/* CERT */
 function showCert(name){
-document.getElementById("app").innerHTML = `
-<h1>🎉 YAYYY</h1>
+const date=new Date().toLocaleDateString();
 
-<div style="
-border:3px dashed #ff5f95;
-padding:20px;
-border-radius:15px;
-background:#fff0f5;
-">
+document.getElementById("app").innerHTML=`
+<h1>🎉 YAYYY</h1>
+<div style="border:3px dashed #ff5f95; padding:20px; border-radius:15px; background:#fff0f5;">
 <h3>📜 Friendship Certificate</h3>
-<p>This certifies</p>
-<h1>${name}</h1>
+<p style="margin-top:5px;">This certifies</p>
+<h1 style="margin:5px 0; color:#ff5f95;">${name}</h1>
 <p>is officially my friend 💖</p>
+<hr style="margin:15px 0; border:0; border-top:1px solid #ffbbd0;">
+<p style="font-size:0.9rem;"><b>Date:</b> ${date}</p>
+</div>
+
+<div id="guestbook" style="margin-top: 20px;">
+<p style="font-size:0.9rem; margin-bottom:8px; color:#555;">Leave a cute message for me! 👇</p>
+<input id="msgInput" placeholder="Type something..." style="padding:10px; width:75%; border-radius:10px; border:1px solid #ffbbd0; outline:none;">
+<button id="sendMsgBtn" style="padding:10px 15px; border:none; border-radius:10px; background:#ff6fa5; color:white; margin-left:5px; font-size:14px;">Send</button>
 </div>
 `;
+
+document.getElementById("sendMsgBtn").onclick=()=>{
+const msg = document.getElementById("msgInput").value.trim();
+if(!msg) return;
+
+saveMessage(deviceId, msg);
+
+document.getElementById("guestbook").innerHTML = `
+<p style="color: #ff5f95; font-weight: bold; margin-top:10px; animation: fade 0.5s ease;">Message sent! See you around, bestie! 🥰</p>
+`;
+};
 }
 
 </script>
