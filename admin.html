@@ -6,100 +6,80 @@
 <title>Admin Panel 💖</title>
 
 <style>
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-font-family:Arial,sans-serif;
-}
-
 body{
+margin:0;
+font-family:Arial,sans-serif;
 background:linear-gradient(135deg,#ffd6e7,#dff8ff);
-padding:30px;
 }
 
-h1{
+.center{
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+flex-direction:column;
 text-align:center;
-color:#ff5f95;
-margin-bottom:25px;
 }
 
-#stats{
-text-align:center;
-margin-bottom:25px;
-font-size:18px;
-color:#666;
+button{
+padding:12px 20px;
+border:none;
+border-radius:999px;
+background:#ff5f95;
+color:white;
+font-size:16px;
+cursor:pointer;
 }
+
+h1{color:#ff5f95;}
 
 .grid{
 display:grid;
 grid-template-columns:repeat(auto-fit,minmax(330px,1fr));
-gap:25px;
+gap:20px;
+padding:20px;
 }
 
 .card{
 background:white;
-padding:22px;
 border-radius:20px;
-box-shadow:0 12px 30px rgba(0,0,0,.12);
+padding:20px;
+box-shadow:0 10px 30px rgba(0,0,0,.1);
 }
 
 .cert{
 border:3px dashed #ff5f95;
-padding:18px;
+padding:15px;
 border-radius:15px;
 background:#fff0f5;
 text-align:center;
 }
 
-.cert h2{
-color:#ff5f95;
-margin:8px 0;
-}
-
-.cert hr{
-margin:15px 0;
-border:none;
-border-top:1px solid #ffb8d0;
-}
+.cert h2{color:#ff5f95;}
 
 .msg{
-margin-top:18px;
-background:white;
-padding:12px;
+margin-top:10px;
+padding:10px;
+border-left:4px solid #ff5f95;
+background:#fff;
 border-radius:10px;
-border-left:5px solid #ff5f95;
-word-break:break-word;
-}
-
-.time{
-margin-top:12px;
-font-size:.85rem;
-color:#777;
-text-align:right;
-}
-
-.empty{
-text-align:center;
-color:#777;
-font-size:18px;
-margin-top:60px;
+word-wrap:break-word;
 }
 </style>
 </head>
 
 <body>
 
-<h1>💖 Friendship Admin Panel</h1>
-
-<div id="stats">Loading...</div>
-
-<div id="cards" class="grid"></div>
+<div id="app" class="center">
+<h1>🔒 Admin Login</h1>
+<button id="loginBtn">Sign in with Google</button>
+</div>
 
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAGg5ZHQHcTLfggRwlRr98TwqCDelpYHjs",
@@ -114,9 +94,49 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
-const cards=document.getElementById("cards");
-const stats=document.getElementById("stats");
+const ADMIN_EMAIL = "m10abdullah09@gmail.com";
+
+const root = document.getElementById("app");
+
+document.getElementById("loginBtn").onclick = async () => {
+
+try{
+
+const result = await signInWithPopup(auth, provider);
+const email = result.user.email;
+
+if(email !== ADMIN_EMAIL){
+
+root.innerHTML = `
+<h1 style="color:red;">❌ Access Denied</h1>
+<p>${email} is not authorized</p>
+`;
+
+await signOut(auth);
+return;
+}
+
+loadDashboard();
+
+}catch(err){
+alert(err.message);
+}
+
+};
+
+function loadDashboard(){
+
+root.innerHTML = `
+<h1 style="text-align:center;margin-top:20px;">💖 Friendship Admin Panel</h1>
+<div id="stats" style="text-align:center;color:#666;">Loading...</div>
+<div id="cards" class="grid"></div>
+`;
+
+const cards = document.getElementById("cards");
+const stats = document.getElementById("stats");
 
 onValue(ref(db,"friends"),snapshot=>{
 
@@ -124,60 +144,46 @@ cards.innerHTML="";
 
 if(!snapshot.exists()){
 stats.textContent="0 Friends";
-cards.innerHTML='<div class="empty">No certificates yet 🥲</div>';
+cards.innerHTML="<h3 style='text-align:center'>No certificates yet 🥲</h3>";
 return;
 }
 
-const data=snapshot.val();
+const data = snapshot.val();
+const arr = Object.values(data);
 
-const arr=Object.values(data);
-
-stats.innerHTML=`<b>${arr.length}</b> Friend${arr.length==1?"":"s"} 💖`;
+stats.innerHTML = `<b>${arr.length}</b> Friend(s) 💖`;
 
 arr.sort((a,b)=>b.time-a.time);
 
-arr.forEach(friend=>{
+arr.forEach(f=>{
 
-const date=new Date(friend.time).toLocaleString();
+const date = new Date(f.time).toLocaleString();
 
-cards.innerHTML+=`
-
+cards.innerHTML += `
 <div class="card">
 
 <div class="cert">
-
 <h3>📜 Friendship Certificate</h3>
-
 <p>This certifies</p>
-
-<h2>${friend.name}</h2>
-
+<h2>${f.name}</h2>
 <p>is officially my friend 💖</p>
-
 <hr>
-
-<p><b>Date Joined</b></p>
-
 <p>${date}</p>
-
 </div>
 
 <div class="msg">
 <b>💌 Message:</b><br><br>
-${friend.message || "<i>No message left.</i>"}
-</div>
-
-<div class="time">
-Device Joined: ${date}
+${f.message || "No message"}
 </div>
 
 </div>
-
 `;
 
 });
 
 });
+
+}
 
 </script>
 
